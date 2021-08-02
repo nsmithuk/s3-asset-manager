@@ -23,7 +23,7 @@ logger = logging.getLogger()
 # Check if we already have the artifacts
 
 if Path("./packages/found").is_file():
-    logger.info(Fore.GREEN + "The artifact(s) for this commit already exists; skipping the upload")
+    logger.info(Fore.GREEN + "The artifact(s) for this commit already exist; skipping this step")
     exit(0)
 
 # --------------------------------
