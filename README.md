@@ -1,11 +1,11 @@
 # S3 Asset Manager
 
 A tool for checking if assets for a given git commit exist in an S3 bucket and, if not, uploading
-the (externally) generated assets once they have been created, into the bucket.
+the (externally) generated assets once they have been created.
 
 This is designed to be run in a CI/CD pipeline, using a Docker container, built from [Dockerfile](Dockerfile).
 
-## Usage
+## Parameters
 
 ### Required for 'check' and 'upload'
 - **PACKAGE_ASSETS_BUCKET**: The name of the S3 bucket in which to store the assets.
@@ -19,6 +19,8 @@ files to include in the code hash (see caching below). *Defaults to None / Disab
 ### Optional for 'check' and 'upload'
 - **PACKAGE_DIRECTORY**: The directory in which the scripts will store metadata, and check for assets to be uploaded. 
 The contents of this path must persist between pipeline tasks. *Defaults to ./packages*
+
+## Local Usage (for testing)
 
 
 ## How it works
@@ -38,7 +40,7 @@ It flags this by touching the path `$PACKAGE_DIRECTORY/.found`.
 #### If not found...
 Then check assumes that either:
 - The assets need building and uploading; or
-- If caching is enabled, we can fetch them out of there (see caching below).
+- If caching is enabled, we can copy the assets out of the cache (see caching below).
 
 #### Either way...
 After check finishes running, if the file `$PACKAGE_DIRECTORY/.found` does not exist, following tasks should
@@ -53,6 +55,9 @@ under the key prefix `artifacts/<commit-hash>/`.
 
 If caching is enabled, a copy of the assets are also stored under the path `cache/<code-hash>`.
 
+## Caching
+
+... to write.
 
 ## License
 
