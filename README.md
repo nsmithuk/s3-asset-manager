@@ -20,8 +20,47 @@ files to include in the code hash (see caching below). *Defaults to None / Disab
 - **PACKAGE_DIRECTORY**: The directory in which the scripts will store metadata, and check for assets to be uploaded. 
 The contents of this path must persist between pipeline tasks. *Defaults to ./packages*
 
-## Local Usage (for testing)
+## Using in Concourse
 
+The check stage, to be run first:
+```yaml
+    - task: check-for-packages
+      params:
+        GIT_REPO_PATH: "./repo-name"
+        CODE_HASH_FIND_FILTER: "lambdas/**"
+        PACKAGE_ASSETS_BUCKET: "bucket-name"
+        <<: *aws_creds
+      config:
+        platform: linux
+        image_resource:
+          type: docker-image
+          source:
+            repository: ghcr.io/nsmithuk/s3-asset-manager       
+        inputs:
+          - name: repo        
+        outputs:
+          - name: packages        
+        run:
+          path: check
+```
+
+The upload stage, to be run last:
+```yaml
+    - task: upload-packages
+      params:
+        PACKAGE_ASSETS_BUCKET: "bucket-name"
+        <<: *aws_creds
+      config:
+        platform: linux
+        image_resource:
+          type: docker-image
+          source:
+            repository: ghcr.io/nsmithuk/s3-asset-manager       
+        inputs:
+          - name: packages        
+        run:
+          path: upload
+```
 
 ## How it works
 
@@ -58,6 +97,36 @@ If caching is enabled, a copy of the assets are also stored under the path `cach
 ## Caching
 
 ... to write.
+
+## Local Usage (for testing)
+
+To run a check:
+```shell
+docker run -it --rm \
+-e AWS_ACCESS_KEY_ID \
+-e AWS_SECRET_ACCESS_KEY \
+-e AWS_SESSION_TOKEN \
+-e AWS_DEFAULT_REGION="eu-west-2" \
+-e PACKAGE_ASSETS_BUCKET="test-bucket-name" \
+-v "${PWD}:/app" \
+-v "${PWD}/local-repo:/repo" \
+-w "/app" \
+ghcr.io/nsmithuk/s3-asset-manager:latest check
+```
+
+To run an upload:
+```shell
+docker run -it --rm \
+-e AWS_ACCESS_KEY_ID \
+-e AWS_SECRET_ACCESS_KEY \
+-e AWS_SESSION_TOKEN \
+-e AWS_DEFAULT_REGION="eu-west-2" \
+-e PACKAGE_ASSETS_BUCKET="test-bucket-name" \
+-v "${PWD}:/app" \
+-v "${PWD}/local-repo:/repo" \
+-w "/app" \
+ghcr.io/nsmithuk/s3-asset-manager:latest upload
+```
 
 ## License
 
