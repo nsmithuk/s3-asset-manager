@@ -20,39 +20,48 @@ logging.basicConfig(format=Fore.YELLOW + '%(message)s', level=logging.INFO)
 logger = logging.getLogger()
 
 # --------------------------------
+# Sense Check Inputs
+
+package_dir = os.environ.get('PACKAGE_DIRECTORY')
+if package_dir is None:
+    logger.critical(Fore.RED + "Missing environment variable: PACKAGE_DIRECTORY")
+    exit(100)
+
+# --------------------------------
 # Check if we already have the artifacts
 
-if Path("./packages/found").is_file():
+if Path(package_dir+"/.found").is_file():
     logger.info(Fore.GREEN + "The artifact(s) for this commit already exist; skipping this step")
     exit(0)
 
 # --------------------------------
-# Sense Check Inputs
+# Sense Check More Inputs
 
 package_assets_bucket = os.environ.get('PACKAGE_ASSETS_BUCKET')
 if package_assets_bucket is None:
     logger.critical(Fore.RED + "Missing environment variable: PACKAGE_ASSETS_BUCKET")
-    exit(100)
+    exit(101)
 
-packages = glob.glob("./packages/*.zip")
+# Returns all non-hidden files, directly in the package_dir
+packages = [x for x in glob.glob(package_dir+"/*") if Path(x).is_file()]
 if len(packages) < 1:
-    logger.critical(Fore.RED + "No zip files found in ./packages/")
-    exit(101)
+    logger.critical(Fore.RED + "No non-hidden files found in " + package_dir)
+    exit(102)
 
-if not Path("./packages/commit-hash").is_file():
-    logger.critical(Fore.RED + "Commit Hash not found at ./packages/commit-hash")
-    exit(101)
+if not Path(package_dir+"/.commit-hash").is_file():
+    logger.critical(Fore.RED + "Commit Hash not found at " + package_dir+"/commit-hash")
+    exit(103)
 
 # --------------------------------
 # Get the hashes
 
-commit_hash = open("./packages/commit-hash", "r").read()
+commit_hash = open(package_dir+"/.commit-hash", "r").read()
 logger.info("Commit hash: %s" % commit_hash)
 
 code_hash = None
 code_hash_dict = {}
-if Path("./packages/code-hash").is_file():
-    code_hash = open("./packages/code-hash", "r").read()
+if Path(package_dir+"/.code-hash").is_file():
+    code_hash = open(package_dir+"/.code-hash", "r").read()
     code_hash_dict = {'code-hash': code_hash}
     logger.info("Code hash: %s" % code_hash)
 
@@ -70,6 +79,7 @@ for idx, p in enumerate(packages):
     path = Path(p)
 
     # Create the package hash, as expected by Lambda (base64 encoded SHA256)
+    # For simplicity we do for this for all files, regardless of if they're lambda packages.
     package_hash = hashlib.sha256()
     with open(str(path), 'rb') as file:
         chunk = 0

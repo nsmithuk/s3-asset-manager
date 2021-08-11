@@ -31,6 +31,11 @@ if git_repo_path is None:
     logger.critical(Fore.RED + "Missing environment variable: GIT_REPO_PATH")
     exit(101)
 
+package_dir = os.environ.get('PACKAGE_DIRECTORY')
+if package_dir is None:
+    logger.critical(Fore.RED + "Missing environment variable: PACKAGE_DIRECTORY")
+    exit(102)
+
 # --------------------------------
 # Get Git Commit Hash
 
@@ -41,7 +46,7 @@ if repo.bare:
     exit(103)
 
 logger.info("Commit hash: %s" % repo.commit())
-open("./packages/commit-hash", "w").write(str(repo.commit()))
+open(package_dir+"/.commit-hash", "w").write(str(repo.commit()))
 
 
 # --------------------------------
@@ -58,7 +63,7 @@ object_list = s3_client.list_objects_v2(
 )
 
 if object_list['KeyCount'] > 0:
-    Path("./packages/found").touch()
+    Path(package_dir+"/.found").touch()
     logger.info(Fore.GREEN + "%d artifact(s) found; no build necessary" % object_list['KeyCount'])
     exit(0)
 
@@ -89,7 +94,7 @@ for pattern in filters:
 hex_code_hash = code_hash.hexdigest()
 
 logger.info("Code hash: %s" % hex_code_hash)
-open("./packages/code-hash", "w").write(hex_code_hash)
+open(package_dir+"/.code-hash", "w").write(hex_code_hash)
 
 key_cache = "cache/%s/" % hex_code_hash
 logger.info("Checking for cached packages at s3://%s/%s" % (package_assets_bucket, key_cache))
@@ -124,7 +129,7 @@ if object_list['KeyCount'] > 0:
             Metadata=obj.metadata,
         )
 
-    Path("./packages/found").touch()
+    Path(package_dir+"/.found").touch()
     logger.info(Fore.GREEN + "Artifact(s) copied from the cache; no build necessary")
     exit(0)
 

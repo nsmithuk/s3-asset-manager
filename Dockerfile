@@ -11,4 +11,7 @@ RUN chmod a+x /usr/local/bin/check
 COPY upload.py /usr/local/bin/upload
 RUN chmod a+x /usr/local/bin/upload
 
+ENV GIT_REPO_PATH="./repo"
+ENV PACKAGE_DIRECTORY="./packages"
+
 CMD ["sh"]
