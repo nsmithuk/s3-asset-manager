@@ -1,3 +1,3 @@
-boto3
-colorama
-GitPython
+boto3^=1.17
+colorama^=0.4
+GitPython^=3.1
