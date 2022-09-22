@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 
-import os
-import boto3
-import logging
 import glob
-import colorama
 import hashlib
+import logging
+import os
+from pathlib import Path
+
+import boto3
+import colorama
 from colorama import Fore
 from git import Repo
-from pathlib import Path
+
+from s3 import get_s3_client
 
 # --------------------------------
 # Init
@@ -46,25 +49,29 @@ if repo.bare:
     exit(103)
 
 logger.info("Commit hash: %s" % repo.commit())
-open(package_dir+"/.commit-hash", "w").write(str(repo.commit()))
+open(package_dir + "/.commit-hash", "w").write(str(repo.commit()))
 
 
 # --------------------------------
 # Check for artifact in the bucket
 
-s3_client = boto3.client('s3')
+s3_client = get_s3_client(logger)
 
 key_artifact = "artifacts/%s" % repo.commit()
-logger.info("Checking for artifacts at s3://%s/%s" % (package_assets_bucket, key_artifact))
+logger.info(
+    "Checking for artifacts at s3://%s/%s" % (package_assets_bucket, key_artifact)
+)
 
 object_list = s3_client.list_objects_v2(
-    Bucket=package_assets_bucket,
-    Prefix=key_artifact
+    Bucket=package_assets_bucket, Prefix=key_artifact
 )
 
 if object_list['KeyCount'] > 0:
-    Path(package_dir+"/.found").touch()
-    logger.info(Fore.GREEN + "%d artifact(s) found; no build necessary" % object_list['KeyCount'])
+    Path(package_dir + "/.found").touch()
+    logger.info(
+        Fore.GREEN
+        + "%d artifact(s) found; no build necessary" % object_list['KeyCount']
+    )
     exit(0)
 
 # --------------------------------
@@ -72,7 +79,10 @@ if object_list['KeyCount'] > 0:
 
 code_hash_find_filter = os.environ.get('CODE_HASH_FIND_FILTER')
 if code_hash_find_filter is None:
-    logger.info(Fore.YELLOW + "No packages found and no cache find filter set; new packages will need to be built")
+    logger.info(
+        Fore.YELLOW
+        + "No packages found and no cache find filter set; new packages will need to be built"
+    )
     exit(0)
 
 logger.info("Artifact prefix not found; checking the cache")
@@ -94,15 +104,14 @@ for pattern in filters:
 hex_code_hash = code_hash.hexdigest()
 
 logger.info("Code hash: %s" % hex_code_hash)
-open(package_dir+"/.code-hash", "w").write(hex_code_hash)
+open(package_dir + "/.code-hash", "w").write(hex_code_hash)
 
 key_cache = "cache/%s/" % hex_code_hash
-logger.info("Checking for cached packages at s3://%s/%s" % (package_assets_bucket, key_cache))
-
-object_list = s3_client.list_objects_v2(
-    Bucket=package_assets_bucket,
-    Prefix=key_cache
+logger.info(
+    "Checking for cached packages at s3://%s/%s" % (package_assets_bucket, key_cache)
 )
+
+object_list = s3_client.list_objects_v2(Bucket=package_assets_bucket, Prefix=key_cache)
 
 if object_list['KeyCount'] > 0:
     logger.info(Fore.GREEN + "%d cached artifact(s) found" % object_list['KeyCount'])
@@ -120,16 +129,13 @@ if object_list['KeyCount'] > 0:
         logger.info(text_colours[colour] + "Copying %s to %s" % (obj.key, target_key))
 
         s3_client.copy_object(
-            CopySource={
-                'Bucket': package_assets_bucket,
-                'Key': obj.key
-            },
+            CopySource={'Bucket': package_assets_bucket, 'Key': obj.key},
             Bucket=package_assets_bucket,
             Key=target_key,
             Metadata=obj.metadata,
         )
 
-    Path(package_dir+"/.found").touch()
+    Path(package_dir + "/.found").touch()
     logger.info(Fore.GREEN + "Artifact(s) copied from the cache; no build necessary")
     exit(0)
 

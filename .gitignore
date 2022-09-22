@@ -3,3 +3,5 @@
 /packages
 /examples.md
 /.DS_Store
+/__pycache__
+/asset_manager
