@@ -15,43 +15,55 @@ from botocore.credentials import RefreshableCredentials
 from botocore.session import get_session
 from colorama import Fore, Style
 
-# --------------------------------
-# Function to get the S3 Client
+# -----------------------------------------------
+# Function to get the S3 Client or Resource
+
+
+def get_sts_session():
+    def _refresh():
+        params = {
+            "RoleArn": os.environ['AWS_ROLE'],
+            "DurationSeconds": 60 * 20,
+            "RoleSessionName": "s3-asset-manager",
+        }
+        response = boto3.client('sts').assume_role(**params).get("Credentials")
+        credentials = {
+            "access_key": response.get("AccessKeyId"),
+            "secret_key": response.get("SecretAccessKey"),
+            "token": response.get("SessionToken"),
+            "expiry_time": response.get("Expiration").isoformat(),
+        }
+        return credentials
+
+    session_credentials = RefreshableCredentials.create_from_metadata(
+        metadata=_refresh(),
+        refresh_using=_refresh,
+        method="sts-assume-role",
+    )
+
+    session = get_session()
+    session._credentials = session_credentials
+    autorefresh_session = Session(botocore_session=session)
+
+    return autorefresh_session
 
 
 def get_s3_client(logger):
     if 'AWS_ROLE' in os.environ:
-
-        def _refresh():
-            params = {
-                "RoleArn": os.environ['AWS_ROLE'],
-                "DurationSeconds": 60 * 20,
-                "RoleSessionName": "s3-asset-manager",
-            }
-            response = boto3.client('sts').assume_role(**params).get("Credentials")
-            credentials = {
-                "access_key": response.get("AccessKeyId"),
-                "secret_key": response.get("SecretAccessKey"),
-                "token": response.get("SessionToken"),
-                "expiry_time": response.get("Expiration").isoformat(),
-            }
-            return credentials
-
-        session_credentials = RefreshableCredentials.create_from_metadata(
-            metadata=_refresh(),
-            refresh_using=_refresh,
-            method="sts-assume-role",
-        )
-
-        session = get_session()
-        session._credentials = session_credentials
-        autorefresh_session = Session(botocore_session=session)
-
-        logger.info(f"Accessing S3 using assumed role: {os.environ['AWS_ROLE']}")
-        return autorefresh_session.client('s3')
+        logger.info(f"Getting S3 client using assumed role: {os.environ['AWS_ROLE']}")
+        return get_sts_session().client('s3')
     else:
-        logger.info(f"Accessing S3 using credentials in environment variables")
+        logger.info(f"Getting S3 client using credentials in environment variables")
         return boto3.client('s3')
+
+
+def get_s3_resource(logger):
+    if 'AWS_ROLE' in os.environ:
+        logger.info(f"Getting S3 resource using assumed role: {os.environ['AWS_ROLE']}")
+        return get_sts_session().resource('s3')
+    else:
+        logger.info(f"Getting S3 resource using credentials in environment variables")
+        return boto3.resource('s3')
 
 
 # --------------------------------
